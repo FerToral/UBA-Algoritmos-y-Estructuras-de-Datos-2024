@@ -3,4 +3,6 @@
 .vscode/
 *.iml
 *.class
+__pycache__/
+*.pyc
 .DS_Store

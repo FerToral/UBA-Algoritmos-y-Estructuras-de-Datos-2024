@@ -1,0 +1,263 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
+\renewcommand{\abstractname}{Resumen}
+\renewcommand{\contentsname}{Índice}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+\newcommand{\R}{\mathbb R}
+\newcommand{\N}{\mathbb N}
+\newcommand{\Bool}{\{\mathrm F,\mathrm V\}}
+\newcommand{\len}[1]{\lvert #1\rvert}
+\newcommand{\pre}{^{\mathrm{pre}}}
+\newcommand{\wpof}[2]{\operatorname{wp}(#1,#2)}
+\title{Trabajo práctico 1\\Fondo Monetario Común\\Especificación y weakest precondition}
+\author{Juan Pablo Otero \and Fernando Toralez}
+\date{Algoritmos y Estructuras de Datos, UBA\\Primer cuatrimestre de 2024}
+\begin{document}
+\maketitle
+\begin{abstract}
+Resolución grupal recuperada de Overleaf, revisada posteriormente sobre la
+versión 3 de la consigna (8 de abril de 2024). Se conservan el problema y su
+autoría; las correcciones de contratos, alcance y demostración se describen
+en el README y en el historial. Este documento no es una corrección docente.
+\end{abstract}
+\tableofcontents
+\clearpage
+\section{Modelo y notación}
+Las secuencias se indexan desde cero. $s[i]$ sólo se utiliza con
+$0\leq i<\len{s}$. Las condiciones que habilitan índices se evalúan antes
+de las expresiones que los emplean. Una cláusula sobre el estado previo
+usa el superíndice $\mathrm{pre}$.
+
+Sean $n$ individuos y $h$ pasos temporales. En apuestas y pagos, la fila
+$i$ tiene $m_i$ eventos posibles. No se necesita que todos los $m_i$
+coincidan. En eventos, todas las filas tienen la misma longitud $h$:
+son instantes comparables del mismo proceso.
+
+Escribimos $\operatorname{Config}(r,c,a,p,e)$ cuando:
+\begin{itemize}
+\item $n=\len{r}>0$ y $\len{c}=\len{a}=\len{p}=\len{e}=n$;
+      $c$ es una secuencia de booleanos y $r_i>0$;
+\item para todo $i<n$, $m_i=\len{a_i}=\len{p_i}>0$;
+      $0\leq a_{ij}\leq1$, $\sum_{j=0}^{m_i-1}a_{ij}=1$ y $p_{ij}>0$;
+\item para todo $i<n$, $\len{e_i}=h$ y
+      $e_{it}\in\N,\ 0\leq e_{it}<m_i$ para todo $t<h$.
+\end{itemize}
+Se admite $h=0$. Los recursos iniciales son positivos, pero apostar cero
+al evento ocurrido puede llevar un recurso posterior a cero. Por ello,
+la redistribución y los estados intermedios admiten recursos no negativos.
+La positividad estricta de ambas apuestas de la sección de correctitud
+se conserva: es una precondición explícita de ese algoritmo particular.
+
+\section{Especificaciones}
+\subsection{Redistribución de los frutos}
+Entrada: $r\in\operatorname{seq}(\R)$, $c\in\operatorname{seq}(\Bool)$.
+Salida: $z\in\operatorname{seq}(\R)$.
+\begin{itemize}
+\item Requiere: $\len{r}=\len{c}=n$ y $r_i\geq0$ para todo $i<n$.
+\item Asegura: $\len{z}=n$; si $n=0$, $z$ es vacía. Si $n>0$:
+\end{itemize}
+\[
+ F(r,c)=\frac{\sum_{j=0}^{n-1}[c_j=\mathrm V]\,r_j}{n},
+ \qquad
+ z_i=F(r,c)+
+ \begin{cases}0&c_i=\mathrm V,\\r_i&c_i=\mathrm F.\end{cases}
+\]
+El caso vacío no evalúa la división. Se reparte entre todos, no sólo
+entre cooperadores. Se cumple
+$\sum_i z_i=\sum_i r_i$: el fondo sustituye los aportes de quienes cooperan
+y quienes no cooperan conservan sus recursos, además de recibir su parte.
+
+\begin{samepage}
+\subsection{Trayectorias de los frutos individuales}
+Procedimiento sin resultado adicional; sólo modifica $H$, una secuencia
+de trayectorias.
+\begin{itemize}
+\item Requiere: cada fila inicial de $H$ tiene un elemento $r_i=H\pre[i][0]$,
+      y vale $\operatorname{Config}(r,c,a,p,e)$.
+\item Modifica: $H$.
+\item Asegura: $\len{H}=n$, cada fila tiene longitud $h+1$,
+      $H_{i0}=r_i$, y para todo $0\leq t<h$:
+\end{itemize}
+\[
+ u_{it}=H_{it}\,a_{i,e_{it}}\,p_{i,e_{it}},
+ \qquad H_{i,t+1}=\operatorname{Redistribuir}(u_{\cdot t},c)_i.
+\]
+Los pagos son multiplicativos. El vector $u_{\cdot t}$ se calcula completo
+antes de redistribuir: no se mezcla un estado nuevo de un individuo con
+el estado anterior de otro.
+
+Denotamos por $\operatorname{Hist}(H;r,c,a,p,e)$ la conjunción de
+dimensiones, estado inicial y recurrencia anteriores. Para una configuración
+válida existe una única $H$, por inducción sobre $t$. Escribimos
+$\Phi_i(r,c,a,p,e)=H_{ih}$ para su recurso final.
+\end{samepage}
+
+\subsection{Trayectoria extraña escalera}
+Entrada: $s\in\operatorname{seq}(\R)$. Salida booleana $b$.
+Requiere: $\mathrm{True}$.
+Definimos, sólo para índices de la secuencia:
+\[
+ \operatorname{MaxLocal}(s,i)\iff
+ (i=0\ \lor\ s_i>s_{i-1})\ \land\
+ (i=\len{s}-1\ \lor\ s_i>s_{i+1}).
+\]
+Cada disyunción protege el acceso a su vecino. Los extremos comparan con
+su único vecino; en longitud uno no hay vecinos y la condición es vacua.
+Asegura:
+\[
+ b\iff\sum_{i=0}^{\len{s}-1}[\operatorname{MaxLocal}(s,i)]=1.
+\]
+En particular, vacío da falso, un elemento da verdadero y dos elementos
+dan verdadero exactamente cuando son distintos. Las mesetas no producen
+máximos estrictos en sus posiciones empatadas.
+
+\subsection{Un individuo decide si cooperar}
+Entradas $i,r,a,p,e$; entrada/salida $c$.
+\begin{itemize}
+\item Requiere: $\operatorname{Config}(r,c\pre,a,p,e)$ y $0\leq i<n$.
+\item Modifica: $c$.
+\item Asegura: $\len{c}=n$ y $c_j=c\pre_j$ para todo $j\neq i$.
+      Además, para cada $q\in\Bool$:
+\end{itemize}
+\[
+ \Phi_i(r,c,a,p,e)\ \geq\
+ \Phi_i(r,c\pre[i\leftarrow q],a,p,e).
+\]
+Se compara el recurso final, no el inmediato ni el total del grupo.
+Ambas opciones utilizan los mismos recursos iniciales y eventos.
+Cualquier opción empatada es válida; el verificador conserva la previa.
+
+\begin{samepage}
+\subsection{Un individuo actualiza su apuesta}
+Entradas $i,r,c,p,e$; entrada/salida $a$.
+\begin{itemize}
+\item Requiere: $\operatorname{Config}(r,c,a\pre,p,e)$ y $0\leq i<n$.
+\item Modifica: $a$.
+\item Asegura: $\operatorname{Config}(r,c,a,p,e)$, y
+      $a_j=a\pre_j$ para todo $j\neq i$.
+      Para cada vector $v$ de longitud $m_i$ con $v_j\geq0$ y
+      $\sum_jv_j=1$:
+\end{itemize}
+\[
+ \Phi_i(r,c,a,p,e)\ \geq\
+ \Phi_i(r,c,a\pre[i\leftarrow v],p,e).
+\]
+No se permite variar apuestas ajenas. Los cuantificadores contienen
+todas las referencias a sus variables: ninguna trayectoria alternativa
+queda fuera de alcance.
+
+El dominio de $v$ es un simplex cerrado y acotado. Para un horizonte
+finito, cada recurso final es un polinomio continuo en sus componentes;
+por tanto existe un máximo. Si se exigiera $v_j>0$, el máximo podría
+no existir: con un individuo, un paso y evento cero, el recurso final
+es proporcional a $v_0$ y el supremo se alcanza en $v_0=1$.
+La consigna general permite proporciones en $[0,1]$; no se traslada
+a ella la precondición estricta del ejercicio de correctitud.
+\end{samepage}
+
+\section{Correctitud del trabajo puramente individual}
+\subsection{Programa, precondición y notación uniforme}
+La firma usa \texttt{recurso}, pero la inicialización del pseudocódigo de
+la versión 3 escribe \texttt{recursos}. Se normaliza ese identificador a
+\texttt{recurso}; sin esta corrección el programa tiene una variable libre.
+No cambia el cálculo. En esta sección, $e=\texttt{eventos}$ es una única
+secuencia booleana, no la matriz de eventos del modelo general.
+Los subíndices $c,s$ de $a$ y $p$ representan los campos
+\texttt{apuesta.c}, \texttt{apuesta.s}, \texttt{pago.c} y \texttt{pago.s}.
+\begin{verbatim}
+res := recurso;
+i := 0;
+while i < |eventos| do
+    if eventos[i] then
+        res := (res * apuesta.c) * pago.c
+    else
+        res := (res * apuesta.s) * pago.s
+    endif;
+    i := i + 1
+endwhile
+\end{verbatim}
+Sea $a_c+a_s=1$, $a_c,a_s,p_c,p_s,\rho>0$, donde $\rho$ representa
+\texttt{recurso}. Llamamos $P$ a esta precondición, junto con el tipado.
+Los parámetros de entrada no cambian. Para $0\leq k\leq h=\len{e}$:
+\[
+ C_k=\sum_{t=0}^{k-1}[e_t=\mathrm V],\quad
+ S_k=\sum_{t=0}^{k-1}[e_t=\mathrm F],\quad
+ G_k=(a_cp_c)^{C_k}(a_sp_s)^{S_k}.
+\]
+Las sumas del prefijo vacío valen cero y $G_0=1$. La postcondición es
+$Q:\ res=\rho G_h$.
+
+\subsection{Invariante e inicialización}
+Tomamos
+\[
+ I:\ P\land 0\leq i\leq h\land res=\rho G_i.
+\]
+Se conserva $P$ en el invariante, no se lo elimina antes de usar sus
+hipótesis de definición. La sustitución para inicializar da:
+\[
+ \wpof{res:=\rho;\ i:=0}{I}
+ \equiv P\land 0\leq0\leq h\land\rho=\rho G_0.
+\]
+Los parámetros tipados, $h\geq0$ y $G_0=1$ demuestran
+$P\Rightarrow\wpof{res:=\rho;\ i:=0}{I}$.
+
+\subsection{Preservación y weakest precondition}
+Sea $B\equiv i<h$ y $C$ el condicional. Primero sustituimos el incremento:
+\[
+ \wpof{i:=i+1}{I}=
+ P\land 0\leq i+1\leq h\land res=\rho G_{i+1}.
+\]
+Bajo $I\land B$, el índice $e_i$ está definido y las operaciones aritméticas
+también lo están. La WP de $C$ exige la condición de la rama elegida:
+\[
+ \begin{aligned}
+ &(e_i=\mathrm V\Rightarrow
+       P\land 0\leq i+1\leq h\land res(a_cp_c)=\rho G_{i+1})\\
+ {}\land{}&
+ (e_i=\mathrm F\Rightarrow
+       P\land 0\leq i+1\leq h\land res(a_sp_s)=\rho G_{i+1}).
+ \end{aligned}
+\]
+Si $e_i=\mathrm V$, $C_{i+1}=C_i+1$, $S_{i+1}=S_i$ y
+$G_{i+1}=G_i(a_cp_c)$. Sustituyendo $res=\rho G_i$ se obtiene
+$\,res(a_cp_c)=\rho G_{i+1}$. La rama falsa es análoga con
+$S_{i+1}=S_i+1$ y $G_{i+1}=G_i(a_sp_s)$.
+La guarda y la integralidad de $i$ garantizan $0\leq i+1\leq h$.
+Por tanto:
+\[
+ I\land B\Rightarrow\wpof{C;\ i:=i+1}{I}.
+\]
+No se divide ni cancela $\rho$: desaparecía incorrectamente en varios
+pasos de la demostración histórica. El factor inicial se mantiene en
+ambas ramas y en la postcondición.
+
+\subsection{Salida y terminación}
+De $I\land\neg B$ se deduce $i=h$ y, por sustitución,
+$res=\rho G_h$, que es $Q$. Esto acredita corrección parcial.
+
+La variante entera $V=h-i$ es no negativa bajo $I$ y estrictamente positiva
+bajo $I\land B$. El cuerpo no altera $h$ y el incremento produce
+$V'=h-(i+1)=V-1<V$. No puede existir una cadena infinita decreciente de
+enteros no negativos. El ciclo termina, por lo que la corrección es total.
+El caso $h=0$ inicializa $res=\rho$ y sale sin consultar ningún evento.
+
+\section{Comprobaciones y fuentes}
+El verificador auxiliar usa racionales exactos para contrastar conservación
+de recursos, trayectorias, máximos locales, elección entre cooperar o no
+y la fórmula individual, incluyendo prefijos del invariante.
+Una malla finita de apuestas sólo verifica ejemplos; no demuestra un
+óptimo sobre todos los reales. Ese requisito está expresado por el
+cuantificador y la existencia se justifica por continuidad y compacidad.
+
+Consigna localizada en una copia pública del documento de la cátedra:
+\href{https://github.com/SashaBerkowsky/AyED-II/blob/42722b4636a1e8e3550f9c6500d3e3ed61e67792/Trabajos\%20Pr\%C3\%A1cticos/TP1/enunciado.pdf}{Fondo Monetario Común, versión 3, 1C2024}.
+No se incorporaron soluciones de ese repositorio.
+La versión pública usa paquetes estándar y macros propias; el proyecto
+original con auxiliares y logos permanece íntegro en el respaldo académico.
+\end{document}
